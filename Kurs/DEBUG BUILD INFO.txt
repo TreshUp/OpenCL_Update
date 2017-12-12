@@ -1,0 +1,7 @@
+cout << clStatus << endl;
+	size_t len = 0;
+	cl_int ret = CL_SUCCESS;
+	ret = clGetProgramBuildInfo(program1, device_list[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+	char *buffer = (char*)calloc(len, sizeof(char));
+	ret = clGetProgramBuildInfo(program1, device_list[0], CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
+	printf("\n\nBuildlog:   %s\n\n", buffer);
