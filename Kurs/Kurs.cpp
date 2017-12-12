@@ -9,9 +9,9 @@
 #include <fstream>
 #include <math.h>
 
-#define N 3
+#define N 11
 //#define NZ 121
-#define local_NZ 2
+#define local_NZ 3
 //#define VECTOR_SIZE 100000
 #define MAX_SOURCE_SIZE (0x100000)
 
@@ -165,6 +165,55 @@ void Len_Generate(crsMatrix &mtx)
 	{
 		if (mtx.Value[mtx.RowIndex[i]])
 	}*/
+}
+void Maple_check(crsMatrix &mtx)
+{
+	float** Check = (float**)calloc(N+1, sizeof(float*));
+	int k = 0;
+	for (k = 0; k < (N + 1); k++)
+	{
+		Check[k]= (float*)calloc(N, sizeof(float));
+	}
+	//for (int i = 0; i < N; i++)
+	//{
+		int i = 0;
+		while (i < N)
+		{
+			int position = mtx.RowIndex[i];
+			//for (int j = 0; j < N; j++)
+			//{
+			int j = i;
+			while (position <= (mtx.RowIndex[i + 1] - 1))
+			{
+				Check[i][j] = mtx.Value[position];
+				if (j > i) Check[j][i] = mtx.Value[position];
+				position++;
+				j++;
+			}
+			i++;
+		}
+		//}
+	//}
+	ofstream fout;
+	fout.open("Sv.txt", ios::out);
+	for (int i = 0; i < N; i++)
+	{
+		Check[i][N] = i + 1;
+		fout << Check[i][N]<<endl;
+	}
+	fout.close();
+	fout.setf(ios::fixed);
+	fout.precision(0);
+	fout.open("Maple.txt", ios::out);
+	for (int i = 0; i < N; i++)
+	{
+		for (int j = 0; j < N; j++)
+		{
+			fout << Check[i][j]<<" ";
+		}
+		fout << endl;
+	}
+	fout.close();
 }
 int main()
 {
@@ -398,7 +447,7 @@ int main()
 			square_y2.setLocalWorkSize(192);
 			square_y2(buffA, xcl, n + 1, i);*/
 
-			if (N % 192)
+			/*if (N % 192)
 			{
 				size_t tmp_1 = N % 192;
 				//size_t tmp_1 = count % N;
@@ -410,27 +459,31 @@ int main()
 				square_y2.setGlobalWorkOffset(m, 0, 0);
 				square_y2.setLocalWorkSize(n % 192);
 				square_y2(buffA, xcl, n + 1, i);
-			}
+			}*/
 		}
-		/*for (int i = N-1; i >= 0; i--)
+		for (int i = N-1; i >= 0; i--)
 		{
 			//square_x1(buffA, xcl, n + 1, i);
 			clStatus = clSetKernelArg(kernel_sqr_x1, 3, sizeof(cl_mem), (void *)&X_clmem);
 			clStatus = clSetKernelArg(kernel_sqr_x1, 4, sizeof(int), (void *)&i);
+			clStatus = clSetKernelArg(kernel_sqr_x1, 5, sizeof(cl_mem), (void *)&koef_clmem);
 			//ToDO local_size
 			clStatus = clEnqueueNDRangeKernel(command_queue, kernel_sqr_x1, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
 			cout << "STATUS_sqrx_1= " << clStatus << endl;
+			clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 			if (i > 0)
 			{
 				/*square_x2.setGlobalWorkSize(i);
-				square_x2(buffA, xcl, n + 1, i);
+				square_x2(buffA, xcl, n + 1, i);*/
 				clStatus = clSetKernelArg(kernel_sqr_x2, 3, sizeof(cl_mem), (void *)&X_clmem);
 				clStatus = clSetKernelArg(kernel_sqr_x2, 4, sizeof(int), (void *)&i);
+				clStatus = clSetKernelArg(kernel_sqr_x2, 5, sizeof(cl_mem), (void *)&koef_clmem);
 				//ToDO local_size
 				clStatus = clEnqueueNDRangeKernel(command_queue, kernel_sqr_x2, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
 				cout << "STATUS_sqrx_2= " << clStatus << endl;
+				clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 			}
-		}*/
+		}
 	//}
 	//clStatus = clEnqueueReadBuffer(command_queue, Value_clmem, CL_TRUE, 0, local_NZ*N * sizeof(float), mtx.Value, 0, NULL, NULL);
 	clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, local_NZ*N * sizeof(float), X, 0, NULL, NULL);
@@ -446,7 +499,7 @@ int main()
 	{
 		cout << i + 1 << ") " << X[i] << endl << "-------" << endl;
 	}
-	cout << "!!!!!!!" << endl;
+	cout << "KOEF" << endl;
 	for (i = 0; i<N; i++)
 	{
 		for (int j = 0; j<=i; j++)
@@ -454,6 +507,18 @@ int main()
 			cout << (((1 + i)*i) / 2) + j << ") " << koef[(((1 + i)*i) / 2)+j] << endl << "-------" << endl;
 		} 
 	}
+	Maple_check(mtx);
+	/*float tmp=0;
+	for (i = 0; i < N; i++)
+	{
+		float sum = 0;
+		for (int k = mtx.RowIndex[i]; k <=( mtx.RowIndex[i+1] - 1); k++)
+		{
+			sum += X[mtx.Col[k]] * mtx.Value[k];
+			//if (k > mtx.RowIndex[i]) tmp += X[mtx.Col[k]] * mtx.Value[k];
+		}
+		cout << sum << endl;
+	}*/
 #pragma region CleanUp
 	// Clean up and wait for all the comands to complete.
 	//все команды добавлены в очередь
@@ -462,9 +527,9 @@ int main()
 	clStatus = clFinish(command_queue);
 
 	clStatus = clReleaseKernel(kernel_fwd1);
-	//clStatus = clReleaseKernel(kernel_fwd2);
+	clStatus = clReleaseKernel(kernel_fwd2);
 	clStatus = clReleaseProgram(program1);
-	//clStatus = clReleaseProgram(program2);
+	clStatus = clReleaseProgram(program2);
 	clStatus = clReleaseMemObject(Value_clmem);
 	clStatus = clReleaseMemObject(Col_clmem);
 	clStatus = clReleaseMemObject(Row_Index_clmem);

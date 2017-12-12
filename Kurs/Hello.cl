@@ -58,21 +58,25 @@ __kernel void square_y2(__global double* Value, __global int* Col, __global int*
  } 
  
  
-/*__kernel void square_x1(__global double* Value, __global int* Col, __global int* RowIndex, __global float *x, int i) 
+__kernel void square_x1(__global double* Value, __global int* Col, __global int* RowIndex, __global float *x, int i,__global float* koef) 
  { 
      //x[i] /= U[i+i*n];
-	x[i]/= Value[RowIndex[i]];
+	//x[i]/= Value[RowIndex[i]];
+	x[i]/=koef[(((1+i)*i)/2)+i];
  } 
  
  
-__kernel void square_x2(__global double* Value, __global int* Col, __global int* RowIndex, __global float *x, int i) 
+__kernel void square_x2(__global double* Value, __global int* Col, __global int* RowIndex, __global float *x, int i,__global float* koef) 
  { 
      local float y; 
      y = x[i]; 
  
  
      int k = get_global_id(0); 
- 
-     //x[k] -= y * U[i+k*n]; 
-	 x[k]-=y*Value[RowIndex[k]+i - Col[RowIndex[k]]];
- }*/
+	if (k<i)
+	{
+		//x[k] -= y * U[i+k*n]; 
+		//x[k]-=y*Value[RowIndex[k]+i - Col[RowIndex[k]]];
+		x[k]-=y*koef[(((1+i)*i)/2)+k];
+	 }
+ }
