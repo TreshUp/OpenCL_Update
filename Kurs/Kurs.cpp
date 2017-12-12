@@ -398,7 +398,7 @@ int main()
 			square_y2.setLocalWorkSize(192);
 			square_y2(buffA, xcl, n + 1, i);*/
 
-			/*if (N % 192)
+			if (N % 192)
 			{
 				size_t tmp_1 = N % 192;
 				//size_t tmp_1 = count % N;
@@ -410,7 +410,7 @@ int main()
 				square_y2.setGlobalWorkOffset(m, 0, 0);
 				square_y2.setLocalWorkSize(n % 192);
 				square_y2(buffA, xcl, n + 1, i);
-			}*/
+			}
 		}
 		/*for (int i = N-1; i >= 0; i--)
 		{
