@@ -71,23 +71,23 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\DATA\soft\Cuda\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\DATA\soft\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Cuda\include;D:\DATA\soft\Cuda\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\Cuda\lib\x64;D:\DATA\soft\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>H:\Cuda\include;F:\Cuda\include;$(IncludePath);H:\Cuda\include</IncludePath>
-    <LibraryPath>H:\Cuda\lib\x64;F:\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Cuda\include;H:\Cuda\include;F:\Cuda\include;$(IncludePath);H:\Cuda\include</IncludePath>
+    <LibraryPath>E:\Cuda\lib\x64;H:\Cuda\lib\x64;F:\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\DATA\soft\Cuda\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\DATA\soft\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Cuda\include;D:\DATA\soft\Cuda\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\Cuda\lib\x64;D:\DATA\soft\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>H:\Cuda\include;D:\DATA\soft\Cuda\include;$(IncludePath);H:\Cuda\include</IncludePath>
-    <LibraryPath>H:\Cuda\lib\x64;D:\DATA\soft\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Cuda\include;H:\Cuda\include;D:\DATA\soft\Cuda\include;$(IncludePath);H:\Cuda\include</IncludePath>
+    <LibraryPath>E:\Cuda\lib\x64;H:\Cuda\lib\x64;D:\DATA\soft\Cuda\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -95,7 +95,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
@@ -110,7 +110,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
@@ -127,7 +127,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
@@ -146,7 +146,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>

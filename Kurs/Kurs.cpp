@@ -9,10 +9,8 @@
 #include <fstream>
 #include <math.h>
 
-#define N 11
-//#define NZ 121
-#define local_NZ 3
-//#define VECTOR_SIZE 100000
+#define N 7
+#define local_NZ 2
 #define MAX_SOURCE_SIZE (0x100000)
 
 using namespace std;
@@ -28,15 +26,15 @@ struct crsMatrix
 
 void InitializeMatrix(crsMatrix &mtx)
 {
-	mtx.Value = new double[local_NZ*N];
-	mtx.Col = new int[local_NZ*N];
-	mtx.RowIndex = new int[N + 1];
+	mtx.Value= (double*)calloc(local_NZ*N, sizeof(double));
+	mtx.Col = (int*)calloc(local_NZ*N, sizeof(int));
+	mtx.RowIndex = (int*)calloc(N + 1, sizeof(int));
 }
 void FreeMemory(crsMatrix &mtx)
 {
-	delete[] mtx.Value;
-	delete[] mtx.Col;
-	delete[] mtx.RowIndex;
+	free(mtx.Value);
+	free(mtx.Col);
+	free(mtx.RowIndex);
 }
 void Generate(crsMatrix &mtx)
 {
@@ -52,7 +50,7 @@ void Generate(crsMatrix &mtx)
 	fout.open("MTX.txt", ios::out);
 	int count = 0;
 	mtx.RowIndex[0] = 0;
-	//srand(time(NULL));
+	srand(time(NULL));
 	int i,j = 0;
 	for (i = 0; i < N; i++)
 	{
@@ -499,14 +497,14 @@ int main()
 	{
 		cout << i + 1 << ") " << X[i] << endl << "-------" << endl;
 	}
-	cout << "KOEF" << endl;
+	/*cout << "KOEF" << endl;
 	for (i = 0; i<N; i++)
 	{
 		for (int j = 0; j<=i; j++)
 		{
 			cout << (((1 + i)*i) / 2) + j << ") " << koef[(((1 + i)*i) / 2)+j] << endl << "-------" << endl;
 		} 
-	}
+	}*/
 	Maple_check(mtx);
 	/*float tmp=0;
 	for (i = 0; i < N; i++)
@@ -535,9 +533,10 @@ int main()
 	clStatus = clReleaseMemObject(Row_Index_clmem);
 	clStatus = clReleaseCommandQueue(command_queue);
 	clStatus = clReleaseContext(context);
-	free(mtx.Value);
+	/*free(mtx.Value);
 	free(mtx.Col);
-	free(mtx.RowIndex);
+	free(mtx.RowIndex);*/
+	FreeMemory(mtx);
 	free(platforms);
 	free(device_list);
 #pragma endregion
