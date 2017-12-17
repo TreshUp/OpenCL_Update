@@ -13,7 +13,7 @@
 #include <conio.h>
 #include <stdio.h>
 
-#define N 1000
+#define N 10000
 #define local_NZ 5
 #define MAX_SOURCE_SIZE (0x100000)
 
@@ -78,7 +78,7 @@ void SetKernel(cl_kernel kernel, cl_mem X_clmem, cl_mem koef_clmem)
 }
 void LenGenerate(crsMatrix &mtx, float* Sv)
 {
-	srand(time(NULL));
+	//srand(time(NULL));
 	int i, j = 0;
 	mtx.RowIndex[0] = 0;
 	for (i = 0; i < N - 1; i++)
@@ -270,8 +270,9 @@ int main()
 	// Set the arguments of the kernel
 	SetKernel(kernel[0], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
 	SetKernel(kernel[1], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
-	size_t global_size;
-	global_size = N; // Process the entire lists
+	//int m = 192 * ((N) / 192);
+	size_t global_size=N;
+	size_t local_size = 1; //N % 192; // Process the entire lists
 	
 	
 	StartCounter();
@@ -280,10 +281,10 @@ int main()
 	for (i = 0; i < N; i++)
 	{
 		clStatus = clSetKernelArg(kernel[0], 3, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, NULL, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, &local_size, 0, NULL, NULL);
 		printf("STATUS1= %d\n", clStatus);
 		clStatus = clSetKernelArg(kernel[1], 3, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[1], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[1], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
 		printf("STATUS2= %d\n", clStatus);
 	}
 
@@ -293,11 +294,11 @@ int main()
 	for (i = 0; i < N; i++)
 	{	
 		clStatus = clSetKernelArg(kernel[2], 2, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[2], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[2], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
 		printf("STATUS_sqry1= %d\n", clStatus);
 
 		clStatus = clSetKernelArg(kernel[3], 2, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[3], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[3], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
 		printf("STATUS_sqry2= %d\n", clStatus);
 	}
 
@@ -316,8 +317,8 @@ int main()
 			printf("STATUS_sqrx2= %d\n", clStatus);
 		}
 	}
-	clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 	double time = GetCounter();
+	clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 	printf("SOLUTION\n");
 	for (i = 0; i<N; i++)
 	{
@@ -331,17 +332,17 @@ int main()
 			cout << (((1 + i)*i) / 2) + j << ") " << koef[(((1 + i)*i) / 2)+j] << endl << "-------" << endl;
 		} 
 	}*/
-	MapleCheck(mtx,Sv);
+	//MapleCheck(mtx,Sv);
 	printf("GPU Time=%f sec.\n", time);
 	
-	int count = 1, sum=N, check=1;
+	/*int count = 1, sum=N, check=1;
 	while (check<local_NZ)
 	{
 		sum += (N - count) * 2;
 		check += 2;
 		count++;
 	}
-	printf("NON ZERO= %f %%\n", (sum * 100.0) / (N*N));
+	printf("NON ZERO= %f %%\n", (sum * 100.0) / (N*N));*/
 		
 //Очистка памяти
 #pragma region CleanUp
