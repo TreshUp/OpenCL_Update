@@ -1,8 +1,8 @@
-__kernel void square_fwd1(__global double* Value, __global int* Col, __global int* RowIndex, int j,__global float* koef) 
+__kernel void square_fwd1(__global float* Value, __global int* Col, __global int* RowIndex, int j,__global float* koef) 
  { 
 	 koef[(((1+j)*j)/2)+j]=sqrt(fabs(Value[RowIndex[j]]));
  }
-__kernel void square_fwd2(__global double* Value, __global int* Col, __global int* RowIndex, int i,__global float* koef)
+__kernel void square_fwd2(__global float* Value, __global int* Col, __global int* RowIndex, int i,__global float* koef)
  { 
 	float s;
 	int j = get_global_id(0); 

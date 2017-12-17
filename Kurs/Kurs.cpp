@@ -10,8 +10,11 @@
 #include <fstream>
 #include <math.h>
 
-#define N 10
-#define local_NZ 2
+#include <conio.h>
+#include <stdio.h>
+
+#define N 1000
+#define local_NZ 5
 #define MAX_SOURCE_SIZE (0x100000)
 
 using namespace std;
@@ -22,13 +25,13 @@ struct crsMatrix
 	// Массив индексов строк (размер N + 1)
 	int* RowIndex;
 	// Массив значений (размер NZ)
-	double* Value;
+	float* Value;
 };
 
 void InitializeMatrix(crsMatrix &mtx)
 {
 
-	mtx.Value= (double*)calloc(local_NZ*N, sizeof(double));
+	mtx.Value= (float*)calloc(local_NZ*N, sizeof(float));
 	mtx.Col = (int*)calloc(local_NZ*N, sizeof(int));
 	mtx.RowIndex = (int*)calloc(N + 1, sizeof(int));
 }
@@ -115,7 +118,8 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 		while (position <= (mtx.RowIndex[i + 1] - 1))
 		{
 			Check[i][j] = mtx.Value[position];
-			if (j > i) Check[j][i] = mtx.Value[position];
+			//cout << i << " " << j << endl;
+			if ((j > i) && (j<N)) Check[j][i] = mtx.Value[position];
 			position++;
 			j++;
 		}
@@ -140,7 +144,7 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 		fout << endl;
 	}
 	fout.close();
-	for (k = 0; k < N; k++)
+	for (k = 0; k < N-1; k++)
 	{
 		free(Check[k]);
 	}
@@ -229,7 +233,7 @@ int main()
 
 	// Create memory buffers on the device for each vector
     //выделение памяти для каждого из векторов
-	cl_mem Value_clmem = clCreateBuffer(context, CL_MEM_READ_WRITE, local_NZ*N * sizeof(double), NULL, &clStatus);
+	cl_mem Value_clmem = clCreateBuffer(context, CL_MEM_READ_WRITE, local_NZ*N * sizeof(float), NULL, &clStatus);
 	cl_mem Col_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, local_NZ*N * sizeof(int), NULL, &clStatus);
 	cl_mem Row_Index_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, (N + 1) * sizeof(int), NULL, &clStatus);
 	cl_mem X_clmem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * sizeof(float), NULL, &clStatus);
@@ -239,7 +243,7 @@ int main()
 	// Copy the Buffer A and B to the device
 	//копирование векторов А и В из памяти хоста в буфер; CL_TRUE - вектор А мб использован и после вызова функции clEnqueueWriteBuffer
 
-	clStatus = clEnqueueWriteBuffer(command_queue, Value_clmem, CL_TRUE, 0, local_NZ*N * sizeof(double), mtx.Value, 0, NULL, NULL);
+	clStatus = clEnqueueWriteBuffer(command_queue, Value_clmem, CL_TRUE, 0, local_NZ*N * sizeof(float), mtx.Value, 0, NULL, NULL);
 	clStatus = clEnqueueWriteBuffer(command_queue, Col_clmem, CL_TRUE, 0, local_NZ*N * sizeof(int), mtx.Col, 0, NULL, NULL);
 	clStatus = clEnqueueWriteBuffer(command_queue, Row_Index_clmem, CL_TRUE, 0, (N + 1) * sizeof(int), mtx.RowIndex, 0, NULL, NULL);
 	clStatus = clEnqueueWriteBuffer(command_queue, Sv_clmem, CL_TRUE, 0, N * sizeof(float), Sv, 0, NULL, NULL);
@@ -266,29 +270,21 @@ int main()
 	// Set the arguments of the kernel
 	SetKernel(kernel[0], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
 	SetKernel(kernel[1], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
-
-	size_t global_size = N; // Process the entire lists
-	size_t local_size = 1; // Process one item at a time
+	size_t global_size;
+	global_size = N; // Process the entire lists
 	
 	
-	//cout << "START" << endl;
 	StartCounter();
 	printf("START\n");
+	//Прямой ход метода Холесского
 	for (i = 0; i < N; i++)
 	{
 		clStatus = clSetKernelArg(kernel[0], 3, sizeof(int), (void *)&i);
-		//ToDO local_size
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, &local_size, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS1= %d\n", clStatus);
-		//cout << "STATUS1= "<<clStatus << endl;
-		//TMP
-		//clStatus = clEnqueueReadBuffer(command_queue, koef_clmem, CL_TRUE, 0, ((1 + N)*N) / 2 * sizeof(float), koef, 0, NULL, NULL);
 		clStatus = clSetKernelArg(kernel[1], 3, sizeof(int), (void *)&i);
-		//ToDO
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[1], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
-		//clStatus = clEnqueueReadBuffer(command_queue, koef_clmem, CL_TRUE, 0, ((1 + N)*N) / 2 * sizeof(float), koef, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[1], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS2= %d\n", clStatus);
-		//cout << "STATUS2= " << clStatus << endl;
 	}
 
 	SetKernel(kernel[2], X_clmem, Sv_clmem, koef_clmem);
@@ -297,46 +293,34 @@ int main()
 	for (i = 0; i < N; i++)
 	{	
 		clStatus = clSetKernelArg(kernel[2], 2, sizeof(int), (void *)&i);
-		//ToDO local_size
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[2], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[2], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS_sqry1= %d\n", clStatus);
-		//cout << "STATUS_sqry1= " << clStatus << endl;
-		//clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 
 		clStatus = clSetKernelArg(kernel[3], 2, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[3], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[3], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS_sqry2= %d\n", clStatus);
-		//cout << "STATUS_sqry_2= " << clStatus << endl;
 	}
 
 	SetKernel(kernel[4], X_clmem, koef_clmem);
 	SetKernel(kernel[5], X_clmem, koef_clmem);
-
+	//Обратный ход метода Холесского
 	for (int i = N-1; i >= 0; i--)
 	{
 		clStatus = clSetKernelArg(kernel[4], 1, sizeof(int), (void *)&i);
-		//ToDO local_size
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[4], 1, NULL, &global_size, &local_size, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[4], 1, NULL, &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS_sqrx1= %d\n", clStatus);
-		//cout << "STATUS_sqrx_1= " << clStatus << endl;
-		//clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 		if (i > 0)
 		{
 			clStatus = clSetKernelArg(kernel[5], 1, sizeof(int), (void *)&i);
-			//ToDO local_size
-			clStatus = clEnqueueNDRangeKernel(command_queue, kernel[5], 1, NULL, &global_size, &local_size, 0, NULL, NULL);
+			clStatus = clEnqueueNDRangeKernel(command_queue, kernel[5], 1, NULL, &global_size, NULL, 0, NULL, NULL);
 			printf("STATUS_sqrx2= %d\n", clStatus);
-			//cout << "STATUS_sqrx_2= " << clStatus << endl;
-			//clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 		}
 	}
 	clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 	double time = GetCounter();
-	//cout << "SOLUTION" << endl;
 	printf("SOLUTION\n");
 	for (i = 0; i<N; i++)
 	{
-		//cout << i + 1 << ") " << X[i] << endl << "-------" << endl;
 		printf("%d) %f\n-------\n", i+1,X[i]);
 	}
 	/*cout << "KOEF" << endl;
@@ -349,6 +333,16 @@ int main()
 	}*/
 	MapleCheck(mtx,Sv);
 	printf("GPU Time=%f sec.\n", time);
+	
+	int count = 1, sum=N, check=1;
+	while (check<local_NZ)
+	{
+		sum += (N - count) * 2;
+		check += 2;
+		count++;
+	}
+	printf("NON ZERO= %f %%\n", (sum * 100.0) / (N*N));
+		
 //Очистка памяти
 #pragma region CleanUp
 	// Clean up and wait for all the comands to complete.
