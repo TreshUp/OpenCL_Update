@@ -13,11 +13,15 @@
 #include <conio.h>
 #include <stdio.h>
 
-#define N 10000
+//Размерность разреженой матрицы
+#define N 1000
+//Число ненулевых элементов
 #define local_NZ 5
+//Размер буфера
 #define MAX_SOURCE_SIZE (0x100000)
 
 using namespace std;
+//Структура, состоящая из трех числовых полей
 struct crsMatrix
 {
 	// Массив номеров столбцов (размер NZ)
@@ -27,14 +31,15 @@ struct crsMatrix
 	// Массив значений (размер NZ)
 	float* Value;
 };
-
+//функция, в которой происходит первоначальная инициализация разреженной матрицы 
 void InitializeMatrix(crsMatrix &mtx)
 {
-
+	//Динамическое выделение памяти
 	mtx.Value= (float*)calloc(local_NZ*N, sizeof(float));
 	mtx.Col = (int*)calloc(local_NZ*N, sizeof(int));
 	mtx.RowIndex = (int*)calloc(N + 1, sizeof(int));
 }
+//Функция, очищающая и удаляющая все ранее выделенные динамические массивы.
 void FreeMemory(crsMatrix &mtx,float* X, float* Sv, float* koef, char* str, cl_platform_id * platforms, cl_device_id *device_list, cl_mem Value_clmem, cl_mem Col_clmem, cl_mem Row_Index_clmem)
 {
 
@@ -47,61 +52,84 @@ void FreeMemory(crsMatrix &mtx,float* X, float* Sv, float* koef, char* str, cl_p
 	free(str);
 	free(platforms);
 	free(device_list);
+	//Используется специальная функция clReleaseMemObject
 	clReleaseMemObject(Value_clmem);
 	clReleaseMemObject(Col_clmem);
 	clReleaseMemObject(Row_Index_clmem);
 }
+//функция, очистка объекта типа cl_kernel с помощью функции clReleaseKernel
 inline void FreeKernel(cl_kernel kernel)
 {
+	//Используется специальная функция clReleaseKernel
 	cl_int clStatus = clReleaseKernel(kernel);
 }
+//Функция, передающая несколько входных параметров в kernel-функцию
 void SetKernel(cl_kernel kernel, cl_mem Value_clmem, cl_mem Col_clmem, cl_mem Row_Index_clmem, cl_mem koef_clmem)
 {
 	cl_int clStatus;
+	//Передаем буфер, ненулевых элементов
 	clStatus = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&Value_clmem);
+	//Передаем буфер, номеров столбцов ненулевых элементов
 	clStatus = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&Col_clmem);
+	//Передаем буфер, индексов начала всех строк
 	clStatus = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&Row_Index_clmem);
+	//Передаем буфер, коэффициентов LU разложения
 	clStatus = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&koef_clmem);
 }
 void SetKernel(cl_kernel kernel, cl_mem X_clmem, cl_mem Sv_clmem, cl_mem koef_clmem)
 {
 	cl_int clStatus;
+	//Передаем буфер, решений исходной разреженной матрицы
 	clStatus = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&X_clmem);
+	//Передаем буфер, состоящий из всех элементов столбца свободных членов
 	clStatus = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&Sv_clmem);
+	//Передаем буфер, коэффициентов LU разложения
 	clStatus = clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&koef_clmem);
 }
 void SetKernel(cl_kernel kernel, cl_mem X_clmem, cl_mem koef_clmem)
 {
 	cl_int clStatus;
+	//Передаем буфер, решений исходной разреженной матрицы
 	clStatus = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&X_clmem);
+	//Передаем буфер, коэффициентов LU разложения
 	clStatus = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&koef_clmem);
 }
+//функция, которая генерирует разреженную матрицу размера N на N с числом local_NZ ненулевых диагоналей
 void LenGenerate(crsMatrix &mtx, float* Sv)
 {
 	//srand(time(NULL));
+	//инициализация счетчиков
 	int i, j = 0;
 	mtx.RowIndex[0] = 0;
 	for (i = 0; i < N - 1; i++)
 	{
+		//число ненулевых элементов
 		int  Num_Non_zero = 1 + local_NZ / 2;
+		//Заполнение столбаца свободных членов
 		Sv[i]= rand() % 100 + 1;
 		mtx.RowIndex[i + 1] = mtx.RowIndex[i] + Num_Non_zero;
 		int	tmp = i;
 		while (Num_Non_zero != 0)
 		{
+			//Свойство диагонального преобладания
 			if (tmp==i) mtx.Value[j] = rand() % 5 + 11;
 			else mtx.Value[j] = rand() % 5 + 1;
+			//Номер столбца
 			mtx.Col[j] = tmp;
+			//Уменьшение числа ненулевых элементов для данной строки
 			Num_Non_zero--;
+			//Изменение счетчиков
 			tmp += 1;
 			j++;
 		}
 	}
+	//Заполнение крайних элементов
 	Sv[N-1] = rand() % 100 + 1;
 	mtx.RowIndex[N] = mtx.RowIndex[N - 1] + local_NZ / 2;
 	mtx.Value[j] = rand() % 5 + 11;
 	mtx.Col[j] = N - 1;
 }
+//Функция, осуществляющая запись исходной разреженной матрицы и столбца свободных членов в текстовые файлы
 void MapleCheck(crsMatrix &mtx,float* Sv)
 {
 	float** Check = (float**)calloc(N, sizeof(float*));
@@ -111,6 +139,7 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 		Check[k]= (float*)calloc(N, sizeof(float));
 	}
 	int i = 0;
+	//Создание временного массива для вывода в файл
 	while (i < N)
 	{
 		int position = mtx.RowIndex[i];
@@ -125,6 +154,7 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 		}
 		i++;
 	}
+	//Вывод в файл столбца свободных членов
 	ofstream fout;
 	fout.open("Sv.txt", ios::out);
 	for (k = 0; k < N; k++)
@@ -134,6 +164,7 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 	fout.close();
 	fout.setf(ios::fixed);
 	fout.precision(0);
+	//Вывод в файл исходной разреженной матрицы
 	fout.open("Maple.txt", ios::out);
 	for (k = 0; k < N; k++)
 	{
@@ -144,20 +175,21 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 		fout << endl;
 	}
 	fout.close();
+	//Освобождение памяти
 	for (k = 0; k < N-1; k++)
 	{
 		free(Check[k]);
 	}
 	free(Check);
 }
+//Функция, в которой происходит создание и инициализация объектов типа cl_kernel
 inline cl_kernel InitKernel(cl_program program, const char* str, cl_int clStatus)
 {
 	return clCreateKernel(program, str, &clStatus);
 }
-double PCFreq = 0.0;
-__int64 CounterStart = 0;
 
-void StartCounter()
+
+/*void StartCounter()
 {
 	LARGE_INTEGER li;
 	if (!QueryPerformanceFrequency(&li))
@@ -173,9 +205,12 @@ double GetCounter()
 	LARGE_INTEGER li;
 	QueryPerformanceCounter(&li);
 	return double(li.QuadPart - CounterStart) / PCFreq;
-}
+}*/
 int main()
 {
+	//Инициализация переменных, используемых таймером
+	double PCFreq = 0.0;
+	__int64 CounterStart = 0;
 	crsMatrix mtx;
 	//Выделение памяти
 	InitializeMatrix(mtx);
@@ -184,7 +219,7 @@ int main()
 
 #pragma region OpenCL
 #pragma region READ
-	//Это все для чтения кернела из файла Hello.cl
+	//Это все для чтения kernel-функций из файла Hello.cl
 	FILE *fp;
 	const char fileName[] = "../Kurs/Hello.cl";
 	size_t source_size;
@@ -198,7 +233,8 @@ int main()
 			exit(1);
 		}
 		source_str = (char *)malloc(MAX_SOURCE_SIZE);
-		source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);//считывает массив размером MAX_SOURCE_SIZE, каждый размеров  1 // возвращает число успешно считанных элементов
+		//Считывает массив размером MAX_SOURCE_SIZE, каждый размеров  1 // Возвращает число успешно считанных элементов
+		source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
 		fclose(fp);
 	}
 	catch (int a) {
@@ -208,40 +244,56 @@ int main()
 	float *X = (float*)calloc(N, sizeof(float));
 	float *koef = (float*)calloc(((1+N)*N)/2.0, sizeof(float*));
 
-	// Get platform and device information
-	cl_platform_id * platforms = NULL; //массив найденных платформ
-	cl_uint num_platforms; //кол-во платформ
+	// Получаем информации о присутсвующих платформах и устройствах
+	//Массив найденных платформ
+	cl_platform_id * platforms = NULL;
+	//Количество платформ
+	cl_uint num_platforms; 
 
-	//Set up the Platform
-	cl_int clStatus = clGetPlatformIDs(0, NULL, &num_platforms); //первый параметр - число платформ на "add"; на выходе в num_platforms записано число платформ
-	platforms = (cl_platform_id *)malloc(sizeof(cl_platform_id)*num_platforms); //динамическое выделение памяти
-	clStatus = clGetPlatformIDs(num_platforms, platforms, NULL); //получение списка доступных платформ; на выходе в массиве содер. все платформы
+	//Задание платформы
+	//Первый параметр - число платформ на добавление; на выходе в num_platforms записано число платформ
+	cl_int clStatus = clGetPlatformIDs(0, NULL, &num_platforms);
+	//Динамическое выделение памяти
+	platforms = (cl_platform_id *)malloc(sizeof(cl_platform_id)*num_platforms);
+	//Получение списка доступных платформ; на выходе в массиве содержатся все платформы
+	clStatus = clGetPlatformIDs(num_platforms, platforms, NULL);
 
-	//Get the devices list and choose the device you want to run on
-	cl_device_id *device_list = NULL; //массив найденных устройств
-	cl_uint num_devices; //кол-во устройств
-	clStatus = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 0, NULL, &num_devices); //первый параметр - какая платформа; второй - тип; третий - число устройств на добавление; на выходе в num_devices записано число устройств
-	device_list = (cl_device_id *)malloc(sizeof(cl_device_id)*num_devices);//динамическое выделение памяти
-	clStatus = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL); //получение списка доступных устройств; на выходе в массиве содер. все устройства
+	//Получаем список всех устройств (CPU, GPU) и выбираем нужную нам
+	//Массив найденных устройств
+	cl_device_id *device_list = NULL; 
+	//Количество устройств
+	cl_uint num_devices;
+	//Первый параметр - какая платформа; второй - тип; третий - число устройств на добавление; на выходе в num_devices записано число устройств
+	clStatus = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 0, NULL, &num_devices);
+	//Динамическое выделение памяти
+	device_list = (cl_device_id *)malloc(sizeof(cl_device_id)*num_devices);
+	//Получение списка доступных устройств; на выходе в массиве содержатся все устройства
+	clStatus = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL); 
 
-	// Create one OpenCL context for each device in the platform
+	//Создание OpenCL контекста для каждого из устройств на платформе
 	cl_context context;
-	context = clCreateContext(NULL, num_devices, device_list, NULL, NULL, &clStatus); //создание контекста
-	// Create a command queue
-	cl_command_queue command_queue = clCreateCommandQueue(context, device_list[0], 0, &clStatus); // создание очереди из команд для устройства;properties - список свойств очереди команд
+	//Создание контекста
+	context = clCreateContext(NULL, num_devices, device_list, NULL, NULL, &clStatus); 
+	//Создание очереди из команд для устройства;properties - список свойств очереди команд
+	cl_command_queue command_queue = clCreateCommandQueue(context, device_list[0], 0, &clStatus);
 
 
-	// Create memory buffers on the device for each vector
-    //выделение памяти для каждого из векторов
+	//Создание буфферов
+    //Выделение памяти на устройстве для каждого из массивов
+	//Динамический буфер, в котором хранятся значения всех ненулевых элементов матрицы
 	cl_mem Value_clmem = clCreateBuffer(context, CL_MEM_READ_WRITE, local_NZ*N * sizeof(float), NULL, &clStatus);
+	//Динамический буфер, в котором содержится номера столбцов всех ненулевых элементов
 	cl_mem Col_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, local_NZ*N * sizeof(int), NULL, &clStatus);
+	//Динамический буфер, в котором содержится индекс начала всех строк
 	cl_mem Row_Index_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, (N + 1) * sizeof(int), NULL, &clStatus);
+	//Динамический буфер, в котором содержится решение разреженной матрицы
 	cl_mem X_clmem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * sizeof(float), NULL, &clStatus);
+	//Динамический буфер, в котором содержится столбец свободных членов
 	cl_mem Sv_clmem= clCreateBuffer(context, CL_MEM_READ_WRITE, N * sizeof(float), NULL, &clStatus);
+	//Динамический буфер, в котором содержится все коэффициенты разложения LU
 	cl_mem koef_clmem= clCreateBuffer(context, CL_MEM_READ_WRITE, ((1 + N)*N) / 2 * sizeof(float), NULL, &clStatus);
 
-	// Copy the Buffer A and B to the device
-	//копирование векторов А и В из памяти хоста в буфер; CL_TRUE - вектор А мб использован и после вызова функции clEnqueueWriteBuffer
+	//Копирование буферов из памяти хоста на девайс; CL_TRUE - параметр, позволяющий использовать буфер и после вызова функции clEnqueueWriteBuffer
 
 	clStatus = clEnqueueWriteBuffer(command_queue, Value_clmem, CL_TRUE, 0, local_NZ*N * sizeof(float), mtx.Value, 0, NULL, NULL);
 	clStatus = clEnqueueWriteBuffer(command_queue, Col_clmem, CL_TRUE, 0, local_NZ*N * sizeof(int), mtx.Col, 0, NULL, NULL);
@@ -268,19 +320,29 @@ int main()
 	}
 
 	// Set the arguments of the kernel
-	SetKernel(kernel[0], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
+	SetKernel(kernel[0], Value_clmem, Row_Index_clmem, koef_clmem);
 	SetKernel(kernel[1], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
 	//int m = 192 * ((N) / 192);
 	size_t global_size=N;
 	size_t local_size = 1; //N % 192; // Process the entire lists
 	
 	
-	StartCounter();
+	//StartCounter();
+	//void StartCounter()
+	//{
+	LARGE_INTEGER li;
+	if (!QueryPerformanceFrequency(&li))
+			cout << "QueryPerformanceFrequency failed!\n";
+
+	PCFreq = double(li.QuadPart);// / 1000.0;
+	QueryPerformanceCounter(&li);
+	CounterStart = li.QuadPart;
+	//}
 	printf("START\n");
 	//Прямой ход метода Холесского
 	for (i = 0; i < N; i++)
 	{
-		clStatus = clSetKernelArg(kernel[0], 3, sizeof(int), (void *)&i);
+		clStatus = clSetKernelArg(kernel[0], 2, sizeof(int), (void *)&i);
 		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, &local_size, 0, NULL, NULL);
 		printf("STATUS1= %d\n", clStatus);
 		clStatus = clSetKernelArg(kernel[1], 3, sizeof(int), (void *)&i);
@@ -317,7 +379,13 @@ int main()
 			printf("STATUS_sqrx2= %d\n", clStatus);
 		}
 	}
-	double time = GetCounter();
+	//double GetCounter()
+	//{
+		//LARGE_INTEGER li;
+		QueryPerformanceCounter(&li);
+		//return double(li.QuadPart - CounterStart) / PCFreq;
+	//}
+		double time = double(li.QuadPart - CounterStart) / PCFreq;;//= GetCounter();
 	clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
 	printf("SOLUTION\n");
 	for (i = 0; i<N; i++)
@@ -335,14 +403,14 @@ int main()
 	//MapleCheck(mtx,Sv);
 	printf("GPU Time=%f sec.\n", time);
 	
-	/*int count = 1, sum=N, check=1;
+	int count = 1, sum=N, check=1;
 	while (check<local_NZ)
 	{
 		sum += (N - count) * 2;
 		check += 2;
 		count++;
 	}
-	printf("NON ZERO= %f %%\n", (sum * 100.0) / (N*N));*/
+	printf("NON ZERO= %f %%\n", (sum * 100.0) / (N*N));
 		
 //Очистка памяти
 #pragma region CleanUp
