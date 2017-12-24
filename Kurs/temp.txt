@@ -1,0 +1,44 @@
+void tryGen(crsMatrix &mtx, float* Sv)
+{
+	//srand(time(NULL));
+	int tmp, j = 0;
+	int Num_NoN = local_NZ;
+	mtx.RowIndex[0] = 0;
+	for (int i = 0; i < N; i++)
+	{
+		mtx.RowIndex[i+1] = mtx.RowIndex[i]+Num_NoN;
+		cout << mtx.RowIndex[i+1]<<endl;
+		Sv[i] = rand() % 100 + 1;
+		tmp = i;
+		while (((N-i)>=Num_NoN) && Num_NoN!=0)
+		{
+			Num_NoN--;
+			//if ()
+			//{
+			if (tmp == i) mtx.Value[j]=rand() % 5 + 11;
+				else mtx.Value[j] = rand() % 5 + 1;
+				cout << mtx.Value[j];
+				mtx.Col[j] = tmp;
+				cout << " ("<<mtx.Col[j]<<") ";
+				tmp++;
+				j++;
+			//}
+		}
+		int loc = N - i;
+		if (Num_NoN != 0) { mtx.RowIndex[i + 1] = mtx.RowIndex[i] + loc; cout << mtx.RowIndex[i+1] << endl; }
+		
+		while ((loc > 0) && Num_NoN != 0)
+		{
+			if (tmp == i) mtx.Value[j] = rand() % 5 + 11;
+			else mtx.Value[j] = rand() % 5 + 1;
+			cout << mtx.Value[j];
+			mtx.Col[j] = tmp;
+			cout << " (" << mtx.Col[j] << ") ";
+			tmp++;
+			j++;
+			loc--;
+		}
+		cout << endl;
+		Num_NoN = local_NZ;
+	}
+}

@@ -14,7 +14,7 @@
 #include <stdio.h>
 
 //Размерность разреженой матрицы
-#define N 1000
+#define N 50
 //Число ненулевых элементов
 #define local_NZ 5
 //Размер буфера
@@ -35,14 +35,14 @@ struct crsMatrix
 void InitializeMatrix(crsMatrix &mtx)
 {
 	//Динамическое выделение памяти
-	mtx.Value= (float*)calloc(local_NZ*N, sizeof(float));
-	mtx.Col = (int*)calloc(local_NZ*N, sizeof(int));
+	mtx.Value = (float*)calloc((2*N - local_NZ/2.0)*(1+local_NZ/2.0)*0.5, sizeof(float));//(local_NZ*N, sizeof(float));
+	mtx.Col = (int*)calloc((2 * N - local_NZ / 2.0)*(1 + local_NZ / 2.0)*0.5, sizeof(float));//(local_NZ*N, sizeof(int));
 	mtx.RowIndex = (int*)calloc(N + 1, sizeof(int));
 }
 //Функция, очищающая и удаляющая все ранее выделенные динамические массивы.
 void FreeMemory(crsMatrix &mtx,float* X, float* Sv, float* koef, char* str, cl_platform_id * platforms, cl_device_id *device_list, cl_mem Value_clmem, cl_mem Col_clmem, cl_mem Row_Index_clmem)
 {
-
+	//Освобождение динамические выделенной памяти
 	free(mtx.Value);
 	free(mtx.Col);
 	free(mtx.RowIndex);
@@ -97,7 +97,7 @@ void SetKernel(cl_kernel kernel, cl_mem X_clmem, cl_mem koef_clmem)
 //функция, которая генерирует разреженную матрицу размера N на N с числом local_NZ ненулевых диагоналей
 void LenGenerate(crsMatrix &mtx, float* Sv)
 {
-	//srand(time(NULL));
+	srand(time(NULL));
 	//инициализация счетчиков
 	int i, j = 0;
 	mtx.RowIndex[0] = 0;
@@ -176,7 +176,7 @@ void MapleCheck(crsMatrix &mtx,float* Sv)
 	}
 	fout.close();
 	//Освобождение памяти
-	for (k = 0; k < N-1; k++)
+	for (k = 0; k < N-2; k++)
 	{
 		free(Check[k]);
 	}
@@ -233,7 +233,7 @@ int main()
 			exit(1);
 		}
 		source_str = (char *)malloc(MAX_SOURCE_SIZE);
-		//Считывает массив размером MAX_SOURCE_SIZE, каждый размеров  1 // Возвращает число успешно считанных элементов
+		//Считывает массив размером MAX_SOURCE_SIZE // Возвращает число успешно считанных элементов
 		source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
 		fclose(fp);
 	}
@@ -280,10 +280,10 @@ int main()
 
 	//Создание буфферов
     //Выделение памяти на устройстве для каждого из массивов
-	//Динамический буфер, в котором хранятся значения всех ненулевых элементов матрицы
-	cl_mem Value_clmem = clCreateBuffer(context, CL_MEM_READ_WRITE, local_NZ*N * sizeof(float), NULL, &clStatus);
+	//Динамический буфер, в котором хранятся значения всех ненулевых элементов матрицы ((((N - local_NZ + 1) + N)*local_NZ) / 2.0, sizeof(float));
+	cl_mem Value_clmem = clCreateBuffer(context, CL_MEM_READ_WRITE, /*local_NZ*N*/(2 * N - local_NZ / 2.0)*(1 + local_NZ / 2.0)*0.5 * sizeof(float), NULL, &clStatus);
 	//Динамический буфер, в котором содержится номера столбцов всех ненулевых элементов
-	cl_mem Col_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, local_NZ*N * sizeof(int), NULL, &clStatus);
+	cl_mem Col_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, /*local_NZ*N*/(2 * N - local_NZ / 2.0)*(1 + local_NZ / 2.0)*0.5 * sizeof(int), NULL, &clStatus);
 	//Динамический буфер, в котором содержится индекс начала всех строк
 	cl_mem Row_Index_clmem = clCreateBuffer(context, CL_MEM_READ_ONLY, (N + 1) * sizeof(int), NULL, &clStatus);
 	//Динамический буфер, в котором содержится решение разреженной матрицы
@@ -295,47 +295,59 @@ int main()
 
 	//Копирование буферов из памяти хоста на девайс; CL_TRUE - параметр, позволяющий использовать буфер и после вызова функции clEnqueueWriteBuffer
 
-	clStatus = clEnqueueWriteBuffer(command_queue, Value_clmem, CL_TRUE, 0, local_NZ*N * sizeof(float), mtx.Value, 0, NULL, NULL);
-	clStatus = clEnqueueWriteBuffer(command_queue, Col_clmem, CL_TRUE, 0, local_NZ*N * sizeof(int), mtx.Col, 0, NULL, NULL);
+	clStatus = clEnqueueWriteBuffer(command_queue, Value_clmem, CL_TRUE, 0, /*local_NZ*N * sizeof(float)*/(2 * N - local_NZ / 2.0)*(1 + local_NZ / 2.0)*0.5 * sizeof(float), mtx.Value, 0, NULL, NULL);
+	clStatus = clEnqueueWriteBuffer(command_queue, Col_clmem, CL_TRUE, 0, /*local_NZ*N * sizeof(int)*/ (2 * N - local_NZ / 2.0)*(1 + local_NZ / 2.0)*0.5 * sizeof(int), mtx.Col, 0, NULL, NULL);
 	clStatus = clEnqueueWriteBuffer(command_queue, Row_Index_clmem, CL_TRUE, 0, (N + 1) * sizeof(int), mtx.RowIndex, 0, NULL, NULL);
 	clStatus = clEnqueueWriteBuffer(command_queue, Sv_clmem, CL_TRUE, 0, N * sizeof(float), Sv, 0, NULL, NULL);
 
 	// Create a program from the kernel source
-	//создание программы, используя контекст, код функции-вычисления
+	//Создание программы, используя контекст, код функции-вычисления
 	cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source_str, (const size_t *)&source_size, &clStatus);
 
 	// Build the program
-	//компилирование и линковка программы
+	//Компилирование и линковка программы
 	//первый параметр - программа; второй -число устройств; третий - список устройств; пятый - If pfn_notify is NULL, clBuildProgram does not return until the build has completed.
 	clStatus = clBuildProgram(program, 1, device_list, NULL, NULL, NULL);
 	
 	// Create the OpenCL kernel
-	//второй параметр - название функции, объявленной в программе как __kernel; 
+	//Второй параметр - название функции, объявленной в программе как __kernel;
+	//массив cl_kernel объектов
 	cl_kernel kernel[6];
+	//Массив всех названий kernel-functions
 	const char str[6][13] = { "square_fwd1", "square_fwd2" ,"square_y1" ,"square_y2", "square_x1","square_x2"};
-	
+	//Для каждой из kernel-function вызывается функция инициализации
 	for (i = 0; i < 6; i++)
 	{
 		kernel[i]=InitKernel(program, str[i], clStatus);
 	}
 
-	// Set the arguments of the kernel
+	//Задание аргументов
 	SetKernel(kernel[0], Value_clmem, Row_Index_clmem, koef_clmem);
 	SetKernel(kernel[1], Value_clmem, Col_clmem, Row_Index_clmem, koef_clmem);
+	
+	SetKernel(kernel[2], X_clmem, Sv_clmem, koef_clmem);
+	SetKernel(kernel[3], X_clmem, Sv_clmem, koef_clmem);
+	
+	SetKernel(kernel[4], X_clmem, koef_clmem);
+	SetKernel(kernel[5], X_clmem, koef_clmem);
+	
 	//int m = 192 * ((N) / 192);
+	//Задаем число work-items
 	size_t global_size=N;
-	size_t local_size = 1; //N % 192; // Process the entire lists
+	//size_t local_size = 1;
 	
 	
 	//StartCounter();
 	//void StartCounter()
 	//{
+	//Инициализация таймера
 	LARGE_INTEGER li;
 	if (!QueryPerformanceFrequency(&li))
 			cout << "QueryPerformanceFrequency failed!\n";
 
 	PCFreq = double(li.QuadPart);// / 1000.0;
 	QueryPerformanceCounter(&li);
+	//Запуск таймера
 	CounterStart = li.QuadPart;
 	//}
 	printf("START\n");
@@ -343,37 +355,42 @@ int main()
 	for (i = 0; i < N; i++)
 	{
 		clStatus = clSetKernelArg(kernel[0], 2, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, &local_size, 0, NULL, NULL);
+		//Запуск первого ядра прямого хода
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[0], 1, NULL, &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS1= %d\n", clStatus);
+		//Запуск второго ядра прямого хода
 		clStatus = clSetKernelArg(kernel[1], 3, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[1], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[1], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS2= %d\n", clStatus);
 	}
-
-	SetKernel(kernel[2], X_clmem, Sv_clmem, koef_clmem);
-	SetKernel(kernel[3], X_clmem, Sv_clmem, koef_clmem);
-
+	//Задание аргументов
+	
+	//Обратный ход метода Холесского
+	//Вычисление y
 	for (i = 0; i < N; i++)
 	{	
 		clStatus = clSetKernelArg(kernel[2], 2, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[2], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
+		//Запуск третьего ядра обратного хода
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[2], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS_sqry1= %d\n", clStatus);
-
+		//Запуск четвертого ядра обратного хода
 		clStatus = clSetKernelArg(kernel[3], 2, sizeof(int), (void *)&i);
-		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[3], 1, (0, 0, 0), &global_size, &local_size, 0, NULL, NULL);
+		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[3], 1, (0, 0, 0), &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS_sqry2= %d\n", clStatus);
 	}
-
-	SetKernel(kernel[4], X_clmem, koef_clmem);
-	SetKernel(kernel[5], X_clmem, koef_clmem);
+	//Задание аргументов
+	
 	//Обратный ход метода Холесского
+	//Вычисление искомого решения
 	for (int i = N-1; i >= 0; i--)
 	{
+		//Запуск пятого ядра обратного хода
 		clStatus = clSetKernelArg(kernel[4], 1, sizeof(int), (void *)&i);
 		clStatus = clEnqueueNDRangeKernel(command_queue, kernel[4], 1, NULL, &global_size, NULL, 0, NULL, NULL);
 		printf("STATUS_sqrx1= %d\n", clStatus);
 		if (i > 0)
 		{
+			//Запуск шестого ядра обратного хода
 			clStatus = clSetKernelArg(kernel[5], 1, sizeof(int), (void *)&i);
 			clStatus = clEnqueueNDRangeKernel(command_queue, kernel[5], 1, NULL, &global_size, NULL, 0, NULL, NULL);
 			printf("STATUS_sqrx2= %d\n", clStatus);
@@ -385,8 +402,10 @@ int main()
 		QueryPerformanceCounter(&li);
 		//return double(li.QuadPart - CounterStart) / PCFreq;
 	//}
-		double time = double(li.QuadPart - CounterStart) / PCFreq;;//= GetCounter();
+	//Время расчетов на GPU
+	double time = double(li.QuadPart - CounterStart) / PCFreq;//= GetCounter();
 	clStatus = clEnqueueReadBuffer(command_queue, X_clmem, CL_TRUE, 0, N * sizeof(float), X, 0, NULL, NULL);
+	//Вывод полученного вектора на экран
 	printf("SOLUTION\n");
 	for (i = 0; i<N; i++)
 	{
@@ -400,9 +419,12 @@ int main()
 			cout << (((1 + i)*i) / 2) + j << ") " << koef[(((1 + i)*i) / 2)+j] << endl << "-------" << endl;
 		} 
 	}*/
-	//MapleCheck(mtx,Sv);
+
+	//Функция проверки высчислений
+	MapleCheck(mtx,Sv);
+	//Вывод времени
 	printf("GPU Time=%f sec.\n", time);
-	
+	//Подсчет процентного содержания ненулевых элеменнтов
 	int count = 1, sum=N, check=1;
 	while (check<local_NZ)
 	{
@@ -411,7 +433,6 @@ int main()
 		count++;
 	}
 	printf("NON ZERO= %f %%\n", (sum * 100.0) / (N*N));
-		
 //Очистка памяти
 #pragma region CleanUp
 	// Clean up and wait for all the comands to complete.
